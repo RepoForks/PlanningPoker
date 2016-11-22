@@ -16,7 +16,12 @@
 
 package saschpe.poker.activity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.widget.LinearLayoutManager;
@@ -26,6 +31,7 @@ import android.support.v7.widget.SnapHelper;
 import android.support.wearable.activity.WearableActivity;
 import android.support.wearable.view.drawer.WearableActionDrawer;
 import android.support.wearable.view.drawer.WearableDrawerLayout;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Menu;
@@ -46,13 +52,17 @@ import static saschpe.poker.util.PlanningPoker.DEFAULTS;
 import static saschpe.poker.util.PlanningPoker.VALUES;
 
 public class MainActivity extends WearableActivity implements
-        WearableActionDrawer.OnMenuItemClickListener {
+        WearableActionDrawer.OnMenuItemClickListener,
+        SensorEventListener {
+    private static final String TAG = MainActivity.class.getSimpleName();
     private static final String PREFS_FLAVOR = "flavor2";
     private static final String STATE_FLAVOR = "flavor";
     private static final SimpleDateFormat AMBIENT_DATE_FORMAT =
             new SimpleDateFormat("HH:mm", Locale.US);
 
     private @PlanningPoker.Flavor int flavor;
+    private SensorManager sensorManager;
+    private Sensor sensor;
     private WearCardArrayAdapter arrayAdapter;
     private WearableActionDrawer actionDrawer;
     private WearableDrawerLayout drawerLayout;
@@ -114,6 +124,21 @@ public class MainActivity extends WearableActivity implements
         actionDrawer.setOnMenuItemClickListener(this);
         // Peeks action drawer on the bottom.
         drawerLayout.peekDrawer(Gravity.BOTTOM);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        sensorManager.unregisterListener(this);
     }
 
     @Override
@@ -177,6 +202,26 @@ public class MainActivity extends WearableActivity implements
     public void onExitAmbient() {
         updateDisplay();
         super.onExitAmbient();
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        Log.d(TAG, "Sensor changed: " + event);
+
+        // If sensor is unreliable, then just return
+        if (event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE)
+        {
+            return;
+        }
+
+        // https://developer.android.com/guide/topics/sensors/sensors_motion.html#sensors-motion-rotate
+        // Likely care for Z axis
+        float z = event.values[2];
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
     }
 
     private void updateDisplay() {
